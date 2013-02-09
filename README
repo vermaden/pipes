@@ -3,6 +3,6 @@ Terminal based screensaver for FreeBSD. Originally for GNU/Linux and OSX.
 Features 'pipes' that are randomly placed on terminal window with random colours.
 
 Screenshot:
-![](https://raw.github.com/vermaden/pipes/master/screenshot.png)
+![pipes.sh](vermaden.github.com/pipes/screenshot.png)
 
 FORKED-FROM: https://github.com/0xAether/pipes
