@@ -1,60 +1,78 @@
 #!/usr/bin/env bash
 
-            declare -i f=75 s=13 r=2000 t=0 c=1 n=0 l=0
-            declare -ir w=$(tput cols) h=$(tput lines)
-            declare -i x=$((w/2)) y=$((h/2))
+f=75   # framerate
+s=13   # straight probability
+r=2000 # reset after ${r} chars
+t=0    # number of used characters
+c=1    # default color
+n=0    # new random direction
+l=0    # line
 
-            declare -ar v=( [00]="\x82" [01]="\x8c" [03]="\x90"    ####
-                            [10]="\x98" [11]="\x80" [12]="\x90"    #  Normal UTF-8 box characters.
-                            [21]="\x94" [22]="\x82" [23]="\x98"    #  (These are the default for they are supported almost everywhere.)
-                            [30]="\x94" [32]="\x8c" [33]="\x80" )  ####
+# /usr/bin/tput from FreeBSD base system is too limited
+if ls -l /usr/local/bin/tput 1> /dev/null 2> /dev/null
+then
+  TPUT=/usr/local/bin/tput
+else
+  TPUT=tput
+fi
 
-          # declare -ar v=( [00]="\x83" [01]="\x8f" [03]="\x93"    ####
-          #                 [10]="\x9b" [11]="\x81" [12]="\x93"    #  Heavy UTF-8 box characters.
-          #                 [21]="\x97" [22]="\x83" [23]="\x9b"    #  (Uncomment only if your terminal supports it)
-          #                 [30]="\x97" [32]="\x8f" [33]="\x81" )  ####
+w=$( ${TPUT} cols )  # terminal window width
+h=$( ${TPUT} lines ) # terminal window height
+x=$(( w/2 ))         # terminal window center vertical
+y=$(( h/2 ))         # terminal window center horizontal
 
-            OPTIND=1
-            while getopts "f:s:r:h" arg; do
-            case $arg in
-                    f) ((f=($OPTARG>19 && $OPTARG<101)?$OPTARG:$f));;
-                    s) ((s=($OPTARG>4 && $OPTARG<16 )?$OPTARG:$s));;
-                    r) ((r=($OPTARG>0)?$OPTARG:$r));;
-                    h) echo -e "Usage: pipes [OPTION]..."
-                            echo -e "Animated pipes terminal screensaver.\n"
-                            echo -e " -f [20-100]\tframerate (D=75)."
-                            echo -e " -s [5-15]\tprobability of a straight fitting (D=13)."
-                            echo -e " -r LIMIT\treset after x characters (D=2000)."
-                            echo -e " -h\t\thelp (this screen).\n"
-                            exit 0;;
-                    esac
-            done
+# colors array
+v=( [00]="\x82" [01]="\x8c" [03]="\x90" [10]="\x98" [11]="\x80" [12]="\x90" \
+    [21]="\x94" [22]="\x82" [23]="\x98" [30]="\x94" [32]="\x8c" [33]="\x80" )
 
-    tput smcup
-    tput reset
-    tput civis
+while getopts "f:s:r:h" arg
+do
+  case ${arg} in
+    (f) (( f=( ${OPTARG}>19 && ${OPTARG} < 101 )?${OPTARG}:${f} )) ;;
+    (s) (( s=( ${OPTARG}>4  && ${OPTARG} < 16  )?${OPTARG}:${s} )) ;;
+    (r) (( r=( ${OPTARG}>0                     )?${OPTARG}:${r} )) ;;
+    (h)
+      echo "usage: $( basename ${0} ) [OPTIONS]"
+      echo "  OPTIONS:"
+      echo "    -f [20-100]  framerate (default ${f})"
+      echo "    -s [5-15]    probability of a straight fitting (default ${s})"
+      echo "    -r [LIMIT]   reset after x characters (default ${r})"
+      echo "    -h           help (this screen)"
+      echo
+      exit 1
+      ;;
+  esac
+done
 
-    trap "tput rmcup; tput reset; exit" SIGINT
+${TPUT} smcup # clear terminal
+${TPUT} reset # reset terminal
+${TPUT} civis # disable cursor display
 
-    while true; do
-                    # New position:
-                    (($l%2)) && ((x+=($l==1)?1:-1))
-                    ((!($l%2))) && ((y+=($l==2)?1:-1))
+# clear terminal after receiving CTRL-C
+trap "${TPUT} rmcup; ${TPUT} reset; exit" SIGINT
 
-                    # Loop on edges (change color on loop):
-                    ((c=($x>$w || $x<0 || $y>$h || $y<0)?($RANDOM%7):$c))
-                    ((x=($x>$w)?0:(($x<0)?$w:$x)))
-                    ((y=($y>$h)?0:(($y<0)?$h:$y)))
+while true
+do
+  # new position
+  ((   ${l}%2   )) && (( x+=(${l}==1)?1:-1 ))
+  (( !(${l}%2 ) )) && (( y+=(${l}==2)?1:-1 ))
 
-                    # New random direction:
-                    ((n=$RANDOM%$s-1))
-                    ((n=($n>1||$n==0)?$l:$l+$n))
-                    ((n=($n<0)?3:$n%4))
+  # change color on edge
+  (( c=(${x}>${w} || ${x}<0 || ${y}>${h} || ${y}<0)?(${RANDOM}%7):$c ))
+  (( x=(${x}>${w})?0:(( ${x}<0)?${w}:${x}) ))
+  (( y=(${y}>${h})?0:(( ${y}<0)?${h}:${y}) ))
 
-                    # Print:
-                    tput cup $y $x
-                    printf "\033[1;3${c}m\xe2\x94${v[$l$n]}"
-                    (($t>$r)) && tput reset && tput civis && t=0 || ((t++))
-                    l=$n
-                    sleep $(echo "scale=5;1/$f"|bc)
-    done
+  # new random direction
+  (( n=${RANDOM}%${s}-1 ))
+  (( n=(${n}>1 || ${n}==0)?${l}:${l}+${n} ))
+  (( n=(${n}<0)?3:${n}%4 ))
+
+  # print
+  ${TPUT} cup ${y} ${x}
+  printf "\033[1;3${c}m\xe2\x94${v[${l}${n}]}"
+  (( ${t}>${r} )) && ${TPUT} reset \
+                  && ${TPUT} civis \
+                  && t=0 || (( t++ ))
+  l=${n}
+  sleep $( echo "scale=5;1/${f}" | bc )
+done
