@@ -1,3 +1,5 @@
-A terminal based screensaver for GNU/Linux. Originally for OSX.
+Terminal based screensaver for FreeBSD. Originally for GNU/Linux and OSX.
 
-Features ``pipes" that are randomly places on the terminal window with random colours and positions.
+Features 'pipes' that are randomly placed on terminal window with random colours.
+
+FORKED-FROM: https://github.com/0xAether/pipes
